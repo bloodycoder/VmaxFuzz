@@ -1360,8 +1360,8 @@ static void update_bitmap_score(struct queue_entry* q) {
       top_vmax[i] = q;
       q->tc_ref++;
 
-      top_vmax[i * 2] = vmax_bits[i * 2];
-      top_vmax[i * 2 + 1] = vmax_bits[i * 2 + 1];
+      vmax_map[i * 2] = vmax_bits[i * 2];
+      vmax_map[i * 2 + 1] = vmax_bits[i * 2 + 1];
 
       score_changed = 1;
 
@@ -3181,7 +3181,7 @@ static void pivot_inputs(void) {
 /* Construct a file name for a new test case, capturing the operation
    that led to its discovery. Uses a static buffer. */
 
-static u8* describe_op(u8 hnb) {
+static u8* describe_op(u8 hnb, u8 hns) {
 
   static u8 ret[256];
 
@@ -3301,7 +3301,7 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
 #ifndef SIMPLE_FILES
 
     fn = alloc_printf("%s/queue/id:%06u,%s", out_dir, queued_paths,
-                      describe_op(hnb));
+                      describe_op(hnb, hns));
 
 #else
 
@@ -3392,7 +3392,7 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
 #ifndef SIMPLE_FILES
 
       fn = alloc_printf("%s/hangs/id:%06llu,%s", out_dir,
-                        unique_hangs, describe_op(0));
+                        unique_hangs, describe_op(0, 0));
 
 #else
 
@@ -3436,7 +3436,7 @@ keep_as_crash:
 #ifndef SIMPLE_FILES
 
       fn = alloc_printf("%s/crashes/id:%06llu,sig:%02u,%s", out_dir,
-                        unique_crashes, kill_signal, describe_op(0));
+                        unique_crashes, kill_signal, describe_op(0, 0));
 
 #else
 
@@ -4736,7 +4736,7 @@ static u8 trim_case(char** argv, struct queue_entry* q, u8* in_buf) {
           memcpy(clean_trace, trace_bits, MAP_SIZE);
 
           //vmaxfuzz
-          memcpy(clean_vmax, vmax_bits, STATE_SIZE * sizeof(s64) * 2);
+          memcpy(clean_vmax, vmax_bits, MAP_SIZE * sizeof(s64) * 2);
 
         }
 
@@ -4771,7 +4771,7 @@ static u8 trim_case(char** argv, struct queue_entry* q, u8* in_buf) {
 
     memcpy(trace_bits, clean_trace, MAP_SIZE);
     //vmaxfuzz
-    memcpy(clean_vmax, vmax_bits, STATE_SIZE * sizeof(s64) * 2);
+    memcpy(clean_vmax, vmax_bits, MAP_SIZE * sizeof(s64) * 2);
     
     update_bitmap_score(q);
 

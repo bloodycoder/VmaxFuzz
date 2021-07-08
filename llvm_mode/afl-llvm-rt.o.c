@@ -100,7 +100,7 @@ static void __afl_map_shm(void) {
     __afl_area_ptr = shmat(shm_id, NULL, 0);
 
     //vmaxfuzz
-    __vmax_ptr = (u64*)&__afl_area_ptr[MAP_SIZE];
+    __vmax_ptr = (s64*)&__afl_area_ptr[MAP_SIZE];
 
     /* Whooooops. */
 
@@ -347,9 +347,6 @@ uint32_t hash_int(uint32_t old, uint32_t val){
   uint64_t input = (((uint64_t)(old))<<32) | ((uint64_t)(val));
   return (uint32_t)(simple_hash(input));
 }
-uint32_t hash_inst(uint32_t old, char* val){
-  return hash_mem(old, val, strlen(val));
-}
 uint32_t hash_mem(uint32_t old, char* val, size_t len){
   old = hash_int(old,len);
   for(size_t i = 0; i < len ; i++){
@@ -357,9 +354,14 @@ uint32_t hash_mem(uint32_t old, char* val, size_t len){
   }
   return old;
 }
+uint32_t hash_inst(uint32_t old, char* val){
+  return hash_mem(old, val, strlen(val));
+}
 
 //void state_inst_int(unsigned int addr, int option, long long int value){
-void state_inst_int(unsigned int addr, long long int value){
+void state_inst_int(long long int value){
+	
+	unsigned int addr = hash_inst(__FILE__, __LINE__);
 
   if(value < -__vmax_ptr[addr % MAP_SIZE * 2]){
       __vmax_ptr[addr % MAP_SIZE * 2] = -value;
@@ -371,7 +373,10 @@ void state_inst_int(unsigned int addr, long long int value){
 }
 
 //void state_inst_string(unsigned int addr, int option, char* str){
-void update_maximum_string(unsigned int addr, char* str){
+void state_inst_string(char* str){
+
+	unsigned int addr = hash_inst(__FILE__, __LINE__);
+
   long long value = strlen(str);
   if(value < -__vmax_ptr[addr % MAP_SIZE * 2]){
       __vmax_ptr[addr % MAP_SIZE * 2] = -value;

@@ -47,6 +47,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <iostream>
+#include <fstream>
 
 #include "llvm/ADT/Statistic.h"
 #include "llvm/IR/IRBuilder.h"
@@ -56,6 +58,7 @@
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 
 using namespace llvm;
+using namespace std;
 
 namespace {
 
@@ -82,18 +85,19 @@ struct Option{
   char arg_type; // 1 = integer, 2 = pointer,...
   char argn; // which arg is to be instrumented
   struct Option *next;
-  Option() tag(0), argn(0), next(nullptr){}
+  Option(): arg_type(0), argn(0), next(nullptr){}
 };
 
-std::map<std::string, Option* op> syscall_map;
+std::map<std::string, Option* > syscall_map;
 
 bool AFLCoverage::doInitialization(Module &M){
-  std::ifstream insyscall(syscall.txt);
+  std::fstream insyscall("/home/cai/Workspace/VmaxFuzz/llvm_mode/syscalls.txt", ios::in);
   if(insyscall.is_open()){
     std::string s;
     while(insyscall >> s){
       int tag_in, argn_in;
-      cin >> tag_in >> argn_in;
+      insyscall >> tag_in >> argn_in;
+      //OKF("%d, %d", tag_in, argn_in);
       if(tag_in && argn_in){
         Option* op_in = new Option();
         op_in->arg_type = tag_in;
@@ -104,14 +108,16 @@ bool AFLCoverage::doInitialization(Module &M){
         syscall_map[s] = nullptr;
       }
     }
-    OKF("map size: %d", syscall_map.size());
+    //OKF("map size: %d", syscall_map.size());
   }
 	else{
-    OKF("file syscalls.txt not open.");
+    //OKF("file syscalls.txt not open.");
   }
 	return false;
 }
 // end vmaxfuzz
+
+
 
 bool AFLCoverage::runOnModule(Module &M) {
 
@@ -119,6 +125,9 @@ bool AFLCoverage::runOnModule(Module &M) {
 
   IntegerType *Int8Ty  = IntegerType::getInt8Ty(C);
   IntegerType *Int32Ty = IntegerType::getInt32Ty(C);
+	//vmaxfuzz
+	IntegerType *Int64Ty = IntegerType::getInt64Ty(C);
+	//
 
   /* Show a banner */
 
@@ -145,27 +154,23 @@ bool AFLCoverage::runOnModule(Module &M) {
 
   //vmaxfuzz
 
+	llvm::IRBuilder<> builder(C); 
+
   // Function state_inst_string()
   std::vector<Type*> argTypesInstString;
-  argTypesMalloc.push_back(builder.getInt32Ty());
-  // argTypesMalloc.push_back(builder.getInt8Ty());
-  argTypesMalloc.push_back(builder.getInt8PtrTy());
-  ArrayRef<Type*> argTypesRefInstString(argTypesInstInt);
-  llvm::FunctionType *funcInstStringType = FunctionType::get(builder.getVoidTy(),argTypesInstString,false);
-  llvm::Function *funcInstString = Function::Create(funcInstMaxString, llvm::Function::ExternalLinkage, "state_inst_string", &M);
+  //argTypesInstString.push_back(builder.getInt32Ty());
+  argTypesInstString.push_back(builder.getInt8PtrTy());
+  ArrayRef<Type*> argTypesRefInstString(argTypesInstString);
+  llvm::FunctionType *funcInstStringType = FunctionType::get(builder.getVoidTy(),argTypesRefInstString,false);
+  llvm::Function *funcInstString = Function::Create(funcInstStringType, llvm::Function::ExternalLinkage, "state_inst_string", &M);
 
   // Function state_inst_int()
   std::vector<Type*> argTypesInstInt;
-  argTypesMalloc.push_back(builder.getInt32Ty());
-  // argTypesMalloc.push_back(builder.getInt8Ty());
-  argTypesMalloc.push_back(builder.getInt64Ty());
+  //argTypesInstInt.push_back(builder.getInt32Ty());
+  argTypesInstInt.push_back(builder.getInt64Ty());
   ArrayRef<Type*> argTypesRefInstInt(argTypesInstInt);
-  llvm::FunctionType *funcInstIntType = FunctionType::get(builder.getVoidTy(),argTypesInstInt,false);
-  llvm::Function *funcInstInt = Function::Create(funcInstMaxType, llvm::Function::ExternalLinkage, "state_inst_int", &M);
-
-  GlobalVariable *AFLVmaxPtr =
-      new GlobalVariable(M, PointerType::get(Int64Ty, 0), false,
-                         GlobalValue::ExternalLinkage, 0, "__vmax_ptr");
+  llvm::FunctionType *funcInstIntType = FunctionType::get(builder.getVoidTy(),argTypesRefInstInt,false);
+  llvm::Function *funcInstInt = Function::Create(funcInstIntType, llvm::Function::ExternalLinkage, "state_inst_int", &M);
 
   //end vmaxfuzz
 
@@ -202,21 +207,14 @@ bool AFLCoverage::runOnModule(Module &M) {
         IRBuilder<> VmaxFuzzBuilder(&(*Inst)); 
 
         Instruction &inst = *Inst;
+        
+        int opCode = inst.getOpcode();
 
-        if (inst->isVectorOp()){
+        if(opCode == Instruction::ExtractElement || Instruction::InsertElement){
 
-          int opCode = inst->getOpcode();
+            Value* tmpValue = inst.getOperand(2); 
 
-          if(opCode == Instruction::Extractelement || Instruction::Insertelement){
-
-            VectorOperator *bo = cast<VectorOperator>(inst);
-            Value* tmpValue = bo->getOperand(2); 
-
-            unsigned int instAddr = hash_inst(__FILE__, __LINE__);
-
-            SmallVector<Value *, 2> functionArg;
-
-            functionArg.push_back(instAddr);
+            SmallVector<Value *, 1> functionArg;
 
             functionArg.push_back(tmpValue);
 
@@ -252,19 +250,16 @@ bool AFLCoverage::runOnModule(Module &M) {
             // outs() <<"syscall on line " << Inst.getDebugLoc().getLine() << fn_name << "\n";
 
             if(map_iter->second){
-              if(inst->getNumOperands() >= map_iter->second->argn){
+              if(inst.getNumOperands() >= map_iter->second->argn){
 
-                unsigned int instAddr = hash_inst(__FILE__, __LINE__) + map_iter->second->argn;
 
-                Value* tmpValue = inst->getOperand(map_iter->second->argn - 1);
+                Value* tmpValue = inst.getOperand(map_iter->second->argn - 1);
 
-                SmallVector<Value *, 2> functionArg;
-
-                functionArg.push_back(instAddr);
+                SmallVector<Value *, 1> functionArg;
 
                 functionArg.push_back(tmpValue);
 
-                switch(map_iter->second->tag){
+                switch(map_iter->second->arg_type){
                   case 1:{ 
                     VmaxFuzzBuilder.CreateCall(funcInstInt, functionArg);
                     break;
