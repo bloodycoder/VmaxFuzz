@@ -157,9 +157,10 @@ static s32 forksrv_pid,               /* PID of the fork server           */
 
 EXP_ST u8* trace_bits;                /* SHM with instrumentation bitmap  */
 
-//vmaxfuzz
-EXP_ST s64* vmax_bits;               /* SHM with instrumentations bitmap */
-EXP_ST s64 vmax_map[MAP_SIZE * 2];        /* the maximum or minimum value of the state space of a variable */
+//vmaxfuzz 
+// use shared memory function to atch variable
+EXP_ST s64*maximum_bits;               /* SHM with instrumentations bitmap */
+EXP_ST s64 max_state[MAP_SIZE * 2];        /* the maximum or minimum value of the state space of a variable */
 //end vmax
 
 EXP_ST u8  virgin_bits[MAP_SIZE],     /* Regions yet untouched by fuzzing */
@@ -291,7 +292,7 @@ static struct queue_entry*
   top_rated[MAP_SIZE];                /* Top entries for bitmap bytes     */
 
 static struct queue_entry*
-  top_vmax[MAP_SIZE];                /* Top entries for vmax_map bytes     */ //vmaxfuzz
+  top_maximum[MAP_SIZE];                /* Top entries for max_state bytes     */ //vmaxfuzz
 
 struct extra_data {
   u8* data;                           /* Dictionary token data            */
@@ -904,10 +905,10 @@ EXP_ST void read_bitmap(u8* fname) {
 
 /* 
    Check if the current execution path brings new vmax.
-   Update vmax_map bits to reflect the finds. Returns 1 if has vmax
+   Update max_state bits to reflect the finds. Returns 1 if has vmax
 */
 
-static inline u8 has_new_vmax() {
+static inline u8 has_new_state() {
 
   s64 i;
   
@@ -915,10 +916,10 @@ static inline u8 has_new_vmax() {
 
   for (i = 0; i < MAP_SIZE * 2; i++) {
 
-    if (unlikely(vmax_bits[i] > vmax_map[i])) {
+    if (unlikely(maximum_bits[i] > max_state[i])) {
 
       ret = 1;
-      vmax_map[i] = vmax_bits[i];
+      max_state[i] = maximum_bits[i];
 
     }
 
@@ -1344,24 +1345,24 @@ static void update_bitmap_score(struct queue_entry* q) {
   //vmaxfuzz
   for (i = 0; i < MAP_SIZE ; i++){
 
-    if(vmax_bits[i * 2] || vmax_bits[i * 2 + 1]){
+    if(maximum_bits[i * 2] ||maximum_bits[i * 2 + 1]){
 
-      if(top_vmax[i]){
+      if(top_maximum[i]){
           
-        if(vmax_map[i * 2] >= vmax_bits[i * 2] && vmax_map[i * 2 + 1] >= vmax_bits[i * 2 + 1]) continue;
+        if(max_state[i * 2] >=maximum_bits[i * 2] && max_state[i * 2 + 1] >=maximum_bits[i * 2 + 1]) continue;
 
-        if(!--top_vmax[i]->tc_ref){
-          ck_free(top_vmax[i]->trace_mini);
-          top_vmax[i]->trace_mini = 0;            
+        if(!--top_maximum[i]->tc_ref){
+          ck_free(top_maximum[i]->trace_mini);
+          top_maximum[i]->trace_mini = 0;            
         }
 
       }
 
-      top_vmax[i] = q;
+      top_maximum[i] = q;
       q->tc_ref++;
 
-      vmax_map[i * 2] = vmax_bits[i * 2];
-      vmax_map[i * 2 + 1] = vmax_bits[i * 2 + 1];
+      max_state[i * 2] =maximum_bits[i * 2];
+      max_state[i * 2 + 1] =maximum_bits[i * 2 + 1];
 
       score_changed = 1;
 
@@ -1409,16 +1410,16 @@ static void cull_queue(void) {
   // //vmaxfuzz
   // for (i = 0; i < MAP_SIZE; i++){
 
-  //   if(top_vmax[i]) {
+  //   if(top_maximum[i]) {
 
-  //     if(top_vmax[i]->was_fuzzed) continue;
+  //     if(top_maximum[i]->was_fuzzed) continue;
 
-  //     u8 was_favored_already = top_vmax[i]->favored;
-  //     top_vmax[i]->favored = 1;
+  //     u8 was_favored_already = top_maximum[i]->favored;
+  //     top_maximum[i]->favored = 1;
 
   //     if(!was_favored_already){
   //       queued_favored++;
-  //       if(!top_vmax[i]->was_fuzzed) pending_favored++;
+  //       if(!top_maximum[i]->was_fuzzed) pending_favored++;
   //     }
   //   }
 
@@ -1488,8 +1489,8 @@ EXP_ST void setup_shm(void) {
   trace_bits = shmat(shm_id, NULL, 0);
 
   //vmaxfuzz
-  vmax_bits = (s64 *)(trace_bits + MAP_SIZE);
-  memset(vmax_bits, 0, MAP_SIZE * sizeof(s64) * 2);
+ maximum_bits = (s64 *)(trace_bits + MAP_SIZE);
+  memset(maximum_bits, 0, MAP_SIZE * sizeof(s64) * 2);
   //end
   
   if (!trace_bits) PFATAL("shmat() failed");
@@ -2401,7 +2402,7 @@ static u8 run_target(char** argv, u32 timeout) {
   memset(trace_bits, 0, MAP_SIZE);
 
   //vmaxfuzz
-  memset(vmax_bits, 0, MAP_SIZE * sizeof(s64) * 2);
+  memset(maximum_bits, 0, MAP_SIZE * sizeof(s64) * 2);
   //end
 
   MEM_BARRIER();
@@ -2738,7 +2739,7 @@ static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
       if (hnb > new_bits) new_bits = hnb;
 
       //vmaxfuzz
-      u8 hns = has_new_vmax();
+      u8 hns = has_new_state();
       if (hns > new_vmax) new_vmax = hns;
       //end
 
@@ -3296,7 +3297,7 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
     }    
 
   //vmaxfuzz
-  hns = has_new_vmax();
+  hns = has_new_state();
 
 #ifndef SIMPLE_FILES
 
@@ -4736,7 +4737,7 @@ static u8 trim_case(char** argv, struct queue_entry* q, u8* in_buf) {
           memcpy(clean_trace, trace_bits, MAP_SIZE);
 
           //vmaxfuzz
-          memcpy(clean_vmax, vmax_bits, MAP_SIZE * sizeof(s64) * 2);
+          memcpy(clean_vmax,maximum_bits, MAP_SIZE * sizeof(s64) * 2);
 
         }
 
@@ -4771,7 +4772,7 @@ static u8 trim_case(char** argv, struct queue_entry* q, u8* in_buf) {
 
     memcpy(trace_bits, clean_trace, MAP_SIZE);
     //vmaxfuzz
-    memcpy(clean_vmax, vmax_bits, MAP_SIZE * sizeof(s64) * 2);
+    memcpy(clean_vmax,maximum_bits, MAP_SIZE * sizeof(s64) * 2);
     
     update_bitmap_score(q);
 
