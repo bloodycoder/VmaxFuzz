@@ -13,6 +13,6 @@
         "binutils":   ["https://github.com/bminor/binutils-gdb/archive/", "binutils-2_36.tar.gz", "binutils-2_36_1.tar.gz"]
     }, 
     {
-        "download_path":    ["/home/cai/workspace/download/"]
+        "download_path":    ["/home/yangke/workspace/download/"]
     }
 ]

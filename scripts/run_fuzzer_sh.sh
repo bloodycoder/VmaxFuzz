@@ -1,6 +1,6 @@
 #!/bin/bash
 pushd `pwd`
-WORK=`pwd`  # vmaxfuzz
+WORK=`pwd`  # JigMaxFuzz
 NAME=binutils
 CVE=$1		# first argv, 
 TEST_SUITE_DIR=$WORK/fuzzer-test-suite

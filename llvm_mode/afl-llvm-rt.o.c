@@ -28,7 +28,7 @@
 
 
 /*
-   VmaxFuzz - LLVM-mode instrumentation pass, based on AFL
+   JigMaxFuzz - LLVM-mode instrumentation pass, based on AFL
    ---------------------------------------------------
 
    Written by Cai Chunfang <caichunfang18@mails.ucas.ac.cn> 
@@ -70,7 +70,7 @@
 u8  __afl_area_initial[MAP_SIZE];
 u8* __afl_area_ptr = __afl_area_initial;
 
-//vmaxfuzz
+//JigMaxFuzz
 s64 __vmax_initial[MAP_SIZE * 2];
 s64* __vmax_ptr = __vmax_initial;
 //end 
@@ -99,7 +99,7 @@ static void __afl_map_shm(void) {
 
     __afl_area_ptr = shmat(shm_id, NULL, 0);
 
-    //vmaxfuzz
+    //JigMaxFuzz
     __vmax_ptr = (s64*)&__afl_area_ptr[MAP_SIZE];
 
     /* Whooooops. */
@@ -215,7 +215,7 @@ int __afl_persistent_loop(unsigned int max_cnt) {
 
       memset(__afl_area_ptr, 0, MAP_SIZE);
 
-      //vmaxfuzz
+      //JigMaxFuzz
       memset(__vmax_ptr, 0, MAP_SIZE*sizeof(s64) * 2);
 
 
@@ -336,7 +336,7 @@ void __sanitizer_cov_trace_pc_guard_init(uint32_t* start, uint32_t* stop) {
 
 }
 
-//vmaxfuzz
+//JigMaxFuzz
 uint64_t simple_hash(uint64_t x) {
     x = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
     x = (x ^ (x >> 27)) * UINT64_C(0x94d049bb133111eb);

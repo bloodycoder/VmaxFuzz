@@ -14,8 +14,8 @@
         "nasm":       ["", "nasm @@ -o /dev/null"]
     },
     {
-      "tofuzz_path" : ["/home/cai/workspace/fuzz/Vmaxfuzz/"], 
-      "download_path":    ["/home/cai/workspace/download/"], 
-      "programs_path":    ["/home/cai/workspace/fuzz/Vmaxfuzz/programs/"]
+      "tofuzz_path" : ["/home/yangke/workspace/fuzz/JigMaxFuzz/"], 
+      "download_path":    ["/home/yangke/workspace/download/"], 
+      "programs_path":    ["/home/yangke/workspace/fuzz/JigMaxFuzz/programs/"]
     }
 ]

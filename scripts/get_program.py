@@ -49,7 +49,7 @@ if(__name__ == "__main__"):
     # get program /XX.json prog
     f = open(sys.argv[1], "r")
     prog = sys.argv[2]
-    
+    type_list = ["bb", "func", "loop"]
     dic_json = json.loads(f.read())
     # type_list = ["bb", "func", "loop"]
 

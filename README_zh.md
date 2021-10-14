@@ -1,4 +1,4 @@
-# VmaxFuzz: 针对内存规模表征变量的种子度量方法
+# JigMaxFuzz: 针对内存规模表征变量的种子度量方法
 
 github:
 
@@ -15,7 +15,7 @@ github:
     ./llvm_mode/afl-llvm-rt.o.c     插桩代码
     ./scripts/      编译、分析、运行的脚本以及代码
 
-### 2) 编译 vmaxfuzz 
+### 2) 编译 JigMaxFuzz 
 
     项目路径下
     ./

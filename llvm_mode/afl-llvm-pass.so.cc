@@ -30,7 +30,7 @@
 */
 
 /*
-   VmaxFuzz - LLVM-mode instrumentation pass, based on AFL
+   JigMaxFuzz - LLVM-mode instrumentation pass, based on AFL
    ---------------------------------------------------
 
    Written by Cai Chunfang <caichunfang18@mails.ucas.ac.cn> 
@@ -71,7 +71,7 @@ namespace {
 
       bool runOnModule(Module &M) override;
 
-      //VmaxFuzz
+      //JigMaxFuzz
       bool doInitialization(Module &M) override;      
 
   };
@@ -80,7 +80,7 @@ namespace {
 
 char AFLCoverage::ID = 0;
 
-//vmaxfuzz
+//JigMaxFuzz
 struct Option{
   char arg_type; // 1 = integer, 2 = pointer,...
   char argn; // which arg is to be instrumented
@@ -91,7 +91,7 @@ struct Option{
 std::map<std::string, Option* > syscall_map;
 
 bool AFLCoverage::doInitialization(Module &M){
-  std::fstream insyscall("/home/cai/Workspace/VmaxFuzz/llvm_mode/syscalls.txt", ios::in);
+  std::fstream insyscall("/home/yangke/Workspace/JigMaxFuzz/llvm_mode/syscalls.txt", ios::in);
   if(insyscall.is_open()){
     std::string s;
     while(insyscall >> s){
@@ -115,7 +115,7 @@ bool AFLCoverage::doInitialization(Module &M){
   }
 	return false;
 }
-// end vmaxfuzz
+// end JigMaxFuzz
 
 
 
@@ -125,7 +125,7 @@ bool AFLCoverage::runOnModule(Module &M) {
 
   IntegerType *Int8Ty  = IntegerType::getInt8Ty(C);
   IntegerType *Int32Ty = IntegerType::getInt32Ty(C);
-	//vmaxfuzz
+	//JigMaxFuzz
 	IntegerType *Int64Ty = IntegerType::getInt64Ty(C);
 	//
 
@@ -152,7 +152,7 @@ bool AFLCoverage::runOnModule(Module &M) {
 
   }
 
-  //vmaxfuzz
+  //JigMaxFuzz
 
 	llvm::IRBuilder<> builder(C); 
 
@@ -172,7 +172,7 @@ bool AFLCoverage::runOnModule(Module &M) {
   llvm::FunctionType *funcInstIntType = FunctionType::get(builder.getVoidTy(),argTypesRefInstInt,false);
   llvm::Function *funcInstInt = Function::Create(funcInstIntType, llvm::Function::ExternalLinkage, "state_inst_int", &M);
 
-  //end vmaxfuzz
+  //end JigMaxFuzz
 
   /* Get globals for the SHM region and the previous location. Note that
      __afl_prev_loc is thread-local. */
@@ -198,7 +198,7 @@ bool AFLCoverage::runOnModule(Module &M) {
       if (AFL_R(100) >= inst_ratio) continue;
 
 
-      //vmaxfuzz
+      //JigMaxFuzz
 
       int syscall_num = 0;
 
@@ -277,7 +277,7 @@ bool AFLCoverage::runOnModule(Module &M) {
         }
       }
 
-      //end vmaxfuzz
+      //end JigMaxFuzz
 
       /* Make up cur_loc */
 

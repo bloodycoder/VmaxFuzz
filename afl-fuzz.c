@@ -29,7 +29,7 @@
 */
 
 /*
-   VmaxFuzz - LLVM-mode instrumentation pass, based on AFL
+   JigMaxFuzz - LLVM-mode instrumentation pass, based on AFL
    ---------------------------------------------------
 
    Written by Cai Chunfang <caichunfang18@mails.ucas.ac.cn> 
@@ -157,7 +157,7 @@ static s32 forksrv_pid,               /* PID of the fork server           */
 
 EXP_ST u8* trace_bits;                /* SHM with instrumentation bitmap  */
 
-//vmaxfuzz 
+//JigMaxFuzz 
 // use shared memory function to atch variable
 EXP_ST s64*maximum_bits;               /* SHM with instrumentations bitmap */
 EXP_ST s64 max_state[MAP_SIZE * 2];        /* the maximum or minimum value of the state space of a variable */
@@ -182,7 +182,7 @@ EXP_ST u32 queued_paths,              /* Total number of queued testcases */
            queued_imported,           /* Items imported via -S            */
            queued_favored,            /* Paths deemed favorable           */
            queued_with_cov,           /* Paths with new coverage bytes    */
-           queued_with_vmax,          /* vmaxfuzz */
+           queued_with_vmax,          /* JigMaxFuzz */
            pending_not_fuzzed,        /* Queued but not done yet          */
            pending_favored,           /* Pending favored paths            */
            cur_skipped_paths,         /* Abandoned inputs in cur cycle    */
@@ -262,13 +262,13 @@ struct queue_entry {
       was_fuzzed,                     /* Had any fuzzing done yet?        */
       passed_det,                     /* Deterministic stages passed?     */
       has_new_cov,                    /* Triggers new coverage?           */
-      has_new_max,                    /* vmaxfuzz */
+      has_new_max,                    /* JigMaxFuzz */
       var_behavior,                   /* Variable behavior?               */
       favored,                        /* Currently favored?               */
       fs_redundant;                   /* Marked as redundant in the fs?   */
 
   u32 bitmap_size,                    /* Number of bits set in bitmap     */
-      vmax_updates,                   /* vmaxfuzz */
+      vmax_updates,                   /* JigMaxFuzz */
       exec_cksum;                     /* Checksum of the execution trace  */
 
   u64 exec_us,                        /* Execution time (us)              */
@@ -292,7 +292,7 @@ static struct queue_entry*
   top_rated[MAP_SIZE];                /* Top entries for bitmap bytes     */
 
 static struct queue_entry*
-  top_maximum[MAP_SIZE];                /* Top entries for max_state bytes     */ //vmaxfuzz
+  top_maximum[MAP_SIZE];                /* Top entries for max_state bytes     */ //JigMaxFuzz
 
 struct extra_data {
   u8* data;                           /* Dictionary token data            */
@@ -901,14 +901,14 @@ EXP_ST void read_bitmap(u8* fname) {
 }
 
 
-//vmaxfuzz
+//JigMaxFuzz
 
 /* 
    Check if the current execution path brings new vmax.
    Update max_state bits to reflect the finds. Returns 1 if has vmax
 */
 
-static inline u8 has_new_state() {
+static inline u8 has_new_vmax() {
 
   s64 i;
   
@@ -1342,7 +1342,7 @@ static void update_bitmap_score(struct queue_entry* q) {
   }
 
 
-  //vmaxfuzz
+  //JigMaxFuzz
   for (i = 0; i < MAP_SIZE ; i++){
 
     if(maximum_bits[i * 2] ||maximum_bits[i * 2 + 1]){
@@ -1407,7 +1407,7 @@ static void cull_queue(void) {
     q = q->next;
   }
 
-  // //vmaxfuzz
+  // //JigMaxFuzz
   // for (i = 0; i < MAP_SIZE; i++){
 
   //   if(top_maximum[i]) {
@@ -1468,7 +1468,7 @@ EXP_ST void setup_shm(void) {
   memset(virgin_tmout, 255, MAP_SIZE);
   memset(virgin_crash, 255, MAP_SIZE);
 
-  //vmaxfuzz
+  //JigMaxFuzz
   shm_id = shmget(IPC_PRIVATE, MAP_SIZE + (MAP_SIZE * sizeof(s64) * 2), IPC_CREAT | IPC_EXCL | 0600);
 
   if (shm_id < 0) PFATAL("shmget() failed");
@@ -1488,7 +1488,7 @@ EXP_ST void setup_shm(void) {
 
   trace_bits = shmat(shm_id, NULL, 0);
 
-  //vmaxfuzz
+  //JigMaxFuzz
  maximum_bits = (s64 *)(trace_bits + MAP_SIZE);
   memset(maximum_bits, 0, MAP_SIZE * sizeof(s64) * 2);
   //end
@@ -2401,7 +2401,7 @@ static u8 run_target(char** argv, u32 timeout) {
 
   memset(trace_bits, 0, MAP_SIZE);
 
-  //vmaxfuzz
+  //JigMaxFuzz
   memset(maximum_bits, 0, MAP_SIZE * sizeof(s64) * 2);
   //end
 
@@ -2678,7 +2678,7 @@ static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
   u8  fault = 0, new_bits = 0, var_detected = 0,
       first_run = (q->exec_cksum == 0);
 
-  //vmaxfuzz
+  //JigMaxFuzz
   u8 new_vmax = 0;
   //end
 
@@ -2738,8 +2738,8 @@ static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
       u8 hnb = has_new_bits(virgin_bits);
       if (hnb > new_bits) new_bits = hnb;
 
-      //vmaxfuzz
-      u8 hns = has_new_state();
+      //JigMaxFuzz
+      u8 hns = has_new_vmax();
       if (hns > new_vmax) new_vmax = hns;
       //end
 
@@ -2802,7 +2802,7 @@ abort_calibration:
     queued_with_cov++;
   }
 
-  //vmaxfuzz
+  //JigMaxFuzz
   if (new_vmax && !q->has_new_max) {
     q->has_new_max = 1;
     queued_with_vmax++;
@@ -3214,7 +3214,7 @@ static u8* describe_op(u8 hnb, u8 hns) {
 
   if (hnb == 2) strcat(ret, ",+cov");
 
-  //vmaxfuzz
+  //JigMaxFuzz
   if (hns == 1) strcat(ret, ",+new_vmax");
   //end 
 
@@ -3280,7 +3280,7 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
 
   u8  *fn = "";
   u8  hnb;
-  //vmaxfuzz
+  //JigMaxFuzz
   u8 hns;
   //end
   s32 fd;
@@ -3296,8 +3296,8 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
       return 0;
     }    
 
-  //vmaxfuzz
-  hns = has_new_state();
+  //JigMaxFuzz
+  hns = has_new_vmax();
 
 #ifndef SIMPLE_FILES
 
@@ -3317,7 +3317,7 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
       queued_with_cov++;
     }
 
-    //vmaxfuzz
+    //JigMaxFuzz
     if (hns) {
       queue_top->has_new_max = 1;
       queued_with_vmax++;
@@ -4432,7 +4432,7 @@ static void show_stats(void) {
        "  imported : " cRST "%-10s " bSTG bV "\n", tmp,
        sync_id ? DI(queued_imported) : (u8*)"n/a");
 
-  //vmaxfuzz
+  //JigMaxFuzz
   SAYF(bV bSTOP "  dictionary : " cRST "%-37s " bSTG bV bSTOP
        "   que_state : " cRST "%-10s " bSTG bV "\n", tmp, DI(queued_with_vmax));
   //end       
@@ -4661,7 +4661,7 @@ static u8 trim_case(char** argv, struct queue_entry* q, u8* in_buf) {
 
   static u8 tmp[64];
   static u8 clean_trace[MAP_SIZE];
-  //vmaxfuzz
+  //JigMaxFuzz
   static s64 clean_vmax[MAP_SIZE][2]; 
   //end
 
@@ -4736,7 +4736,7 @@ static u8 trim_case(char** argv, struct queue_entry* q, u8* in_buf) {
           needs_write = 1;
           memcpy(clean_trace, trace_bits, MAP_SIZE);
 
-          //vmaxfuzz
+          //JigMaxFuzz
           memcpy(clean_vmax,maximum_bits, MAP_SIZE * sizeof(s64) * 2);
 
         }
@@ -4771,7 +4771,7 @@ static u8 trim_case(char** argv, struct queue_entry* q, u8* in_buf) {
     close(fd);
 
     memcpy(trace_bits, clean_trace, MAP_SIZE);
-    //vmaxfuzz
+    //JigMaxFuzz
     memcpy(clean_vmax,maximum_bits, MAP_SIZE * sizeof(s64) * 2);
     
     update_bitmap_score(q);
